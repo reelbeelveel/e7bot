@@ -2,6 +2,7 @@
 
 import sys
 import os
+import json
 
 import discord
 from discord_ext import commands
@@ -18,4 +19,16 @@ def init_env():
     if token is None:
         raise Exception("No token found in .env file")
     return token
+
+def load_state():
+    """Load state from json file."""
+    try:
+        with open("guild_data.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("Guild data could not be found.")
+        return {}
+    except json.decoder.JSONDecodeError:
+        print("Guild data could not be decoded.")
+        return {}
 
