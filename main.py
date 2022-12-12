@@ -32,3 +32,13 @@ def load_state():
         print("Guild data could not be decoded.")
         return {}
 
+def save_state(state):
+    """Save state to json file."""
+    print("Saving guild data...")
+    try:
+        with open("guild_data.json", "w") as f:
+            json.dump(state, f)
+            print("Guild data saved.")
+    except Exception as e:
+        print("Guild data could not be saved.")
+        print(e)
