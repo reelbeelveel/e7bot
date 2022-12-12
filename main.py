@@ -3,14 +3,12 @@
 import sys
 import os
 import json
-
 import discord
-from discord_ext import commands
-from discord import guild
-from discord_slash import SlashCommand, SlashContext
-from discord_slash.utils.manage_commands import create_option, create_choice
-
+import interactions
 from dotenv import load_dotenv
+
+bot = None
+token = None
 
 def init_env():
     """Load the .env file and return the token"""
@@ -20,25 +18,18 @@ def init_env():
         raise Exception("No token found in .env file")
     return token
 
-def load_state():
-    """Load state from json file."""
-    try:
-        with open("guild_data.json", "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print("Guild data could not be found.")
-        return {}
-    except json.decoder.JSONDecodeError:
-        print("Guild data could not be decoded.")
-        return {}
 
-def save_state(state):
-    """Save state to json file."""
-    print("Saving guild data...")
-    try:
-        with open("guild_data.json", "w") as f:
-            json.dump(state, f)
-            print("Guild data saved.")
-    except Exception as e:
-        print("Guild data could not be saved.")
-        print(e)
+
+if __name__ == "__main__":
+    token = init_env()
+    bot = interactions.Client(token)
+
+@bot.command(name="ping", description="Pong!")
+async def ping(ctx: interactions.CommandContext):
+    await ctx.send("Pong!")
+
+if __name__ == "__main__":
+    bot.start()
+    
+
+
