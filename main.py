@@ -3,11 +3,15 @@
 import sys
 import os
 import datetime
-import json
+
 import discord
 import interactions
 import requests
 from dotenv import load_dotenv
+
+from e7parser import Character
+from cache import Character_Cache
+
 
 bot = None
 token = None
@@ -25,33 +29,27 @@ def init_env():
 def get_e7_character_data(character_name):
     """Get the data from the e7 website"""
     url = e7_url + character_name.lower().replace(" ", "-") + "/"
-    print(url)
+    if bot.debug: print(url)
     r = requests.get(url)
-    print(r.status_code)
+    if bot.debug: print(r.status_code)
     if r.status_code != 200:
         raise Exception("Error getting data from e7 website")
     return r.text, url
 
-def parse_character_data(data, url, character_name):
-    """Parse the data and return the character info"""
-    lines = data.splitlines()
-
-    # Get the image link -- Find line containing this string
-    image_line = [line for line in lines if "var SELECTED_SKIN =" in line][0]
-    image_link = image_line.split('=')[1]
-    for _ in ["'", '"', ";"]:
-        image_link = image_link.replace(_, "")
-    image_link.strip()
-
+def generate_embed(data, cached=False):
+    """Generate the embed"""
+    foot=None if not cached else interactions.EmbedFooter(text="Cached")
     return interactions.Embed(
-        title=f"{character_name.title()}",
-        description=f"{character_name}",
-        color=0xd700ff,
+        title=data.title,
+        description=data.description,
+        color=data.color,
         timestamp=datetime.datetime.utcnow(),
-        thumbnail=interactions.EmbedImageStruct(url=image_link),
-        url=url
+        thumbnail=interactions.EmbedImageStruct(url=data.image),
+        url=data.url,
+        footer=foot
         #provider=interactions.EmbedProvider(name="Epic Seven Wiki", url="https://epic7x.com/")
     )
+
 
 if __name__ == "__main__":
     token = init_env()
@@ -75,13 +73,41 @@ async def ping(ctx: interactions.CommandContext):
 )
 async def get_character(ctx: interactions.CommandContext, character: str):
     try:
+        message = None
         character = character.lower()
+        for _ in ["_", '-']:
+            character = character.replace(_, " ")
+        if bot.debug: print(bot.c.cache)
+        if character in bot.c.cache:
+            await ctx.send(embeds=generate_embed(bot.c.cache[character], cached=True))
+            return
+        # else:
         message = await ctx.send("Getting data...")
         data, url = get_e7_character_data(character)
-        await message.edit(content=None, embeds=parse_character_data(data, url, character))
-    except Exception as e:
-        await message.edit(f"Hmmm... Something went wrong: {e}")
 
+        # Format into character
+        c = Character(data, url, character)
+        # Send the embed
+        await message.edit(content=None, embeds=generate_embed(c))
+        # Add to cache
+        bot.c.cache[character] = c
+        return
+    except Exception as e:
+        emesg = f"Hmmm... Something went wrong: {e}"
+        if message is not None:
+            await message.edit(emesg)
+            return
+        # else:
+        await ctx.send(emesg)
 
 if __name__ == "__main__":
-    bot.start()
+    try:
+        bot.debug = False
+        bot.c = Character_Cache("ccache.pickle")
+
+        bot.start()
+    except Exception:
+        pass
+    finally:
+        bot.c.save_cache()
+ 
